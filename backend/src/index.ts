@@ -18,4 +18,8 @@ wss.on('connection', function connection(ws, req) {
     console.log(`joined ${userName}`)
     //@ts-ignore
     gameManager.addUser(new User(ws, userName))
+
+    ws.on('close', () =>{
+        gameManager.removeUser(ws)
+    })
 });

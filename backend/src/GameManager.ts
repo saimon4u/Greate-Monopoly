@@ -17,20 +17,22 @@
 // import { SocketManager, User } from './SocketManager';
 // import { Square } from 'chess.js';
 
+import { Game } from './util/Game';
 import { Room } from './util/Room';
 import { User } from './util/User'
 import { randomUUID } from 'crypto';
+import WebSocket from 'ws'
 
 
 export class GameManager {
-  //   private games: Game[];
+    private games: Game[];
   //   private pendingGameId: string | null;
   private users: User[];
   private pendingUser: User[];
   private rooms: Room[];
 
   constructor() {
-    // this.games = [];
+    this.games = [];
     // this.pendingGameId = null;
     this.users = [];
     this.pendingUser = [];
@@ -43,15 +45,14 @@ export class GameManager {
     // if(this.pendingUser.length < 3) this.pendingUser.push(user);
   }
 
-  // removeUser(socket: WebSocket) {
-  //   const user = this.users.find((user) => user.socket !== socket);
-  //   if (!user) {
-  //     console.error('User not found?');
-  //     return;
-  //   }
-  //   this.users = this.users.filter((user) => user.socket !== socket);
-  //   SocketManager.getInstance().removeUser(user);
-  // }
+  removeUser(socket: WebSocket) {
+    const user = this.users.find((user) => user.socket !== socket);
+    if (!user) {
+      console.error('User not found?');
+      return;
+    }
+    this.users = this.users.filter((user) => user.socket !== socket);
+  }
 
   // removeGame(gameId: string) {
   //   this.games = this.games.filter((g) => g.gameId !== gameId);
@@ -59,7 +60,6 @@ export class GameManager {
 
   private addHandler(user: User) {
     //@ts-ignore
-
     user.socket.on('message', (data) => {
       const message = JSON.parse(data);
 
@@ -67,13 +67,21 @@ export class GameManager {
         let roomId = user.userName + this.rooms.length
         let room = new Room(roomId)
         room.addUser(user)
-        console.log('room created')
+        // console.log('room created')
         this.rooms.push(room)
         user.socket.send(
           JSON.stringify({
             type: 'room-created',
             payload: {
               roomId: roomId
+            }
+          })
+        )
+        user.socket.send(
+          JSON.stringify({
+            type: 'waiting',
+            payload: {
+              waitMessage: `waiting for 3 more user to join...`
             }
           })
         )
@@ -99,21 +107,42 @@ export class GameManager {
               }
             })
           )
-
-          room.addUser(user)
-          if (room.users.length < 4) {
-            this.users.forEach((u) => {
+          if (room.users.length < 3) {
+            room.addUser(user)
+            room.users.forEach((u) => {
               u.socket.send(
                 JSON.stringify({
                   type: 'waiting',
                   payload: {
-                    waitMessage: `waiting for ${4 - this.users.length} more user to join...`
+                    waitMessage: `waiting for ${4 - room.users.length} more user to join...`
                   }
                 })
               )
             })
-          }else{
-            
+          }else if(room.users.length == 3){
+            room.addUser(user)
+            const game = new Game(room.users[0], room.users[1], room.users[2], room.users[3])
+            this.games.push(game)
+            room.users.forEach((u) => {
+              u.socket.send(
+                JSON.stringify({
+                  type: 'game-started',
+                  payload: {
+                    gameId: game.gameId
+                  }
+                })
+              )
+            })
+          }
+          else{
+            user.socket.send(
+              JSON.stringify({
+                type: 'room-full',
+                payload: {
+                  roomId: roomId
+                }
+              })
+            )
           }
         }
       }

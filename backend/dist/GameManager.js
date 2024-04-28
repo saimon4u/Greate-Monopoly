@@ -18,10 +18,11 @@ exports.GameManager = void 0;
 // import { db } from './db';
 // import { SocketManager, User } from './SocketManager';
 // import { Square } from 'chess.js';
+const Game_1 = require("./util/Game");
 const Room_1 = require("./util/Room");
 class GameManager {
     constructor() {
-        // this.games = [];
+        this.games = [];
         // this.pendingGameId = null;
         this.users = [];
         this.pendingUser = [];
@@ -52,12 +53,18 @@ class GameManager {
                 let roomId = user.userName + this.rooms.length;
                 let room = new Room_1.Room(roomId);
                 room.addUser(user);
-                console.log('room created');
+                // console.log('room created')
                 this.rooms.push(room);
                 user.socket.send(JSON.stringify({
                     type: 'room-created',
                     payload: {
                         roomId: roomId
+                    }
+                }));
+                user.socket.send(JSON.stringify({
+                    type: 'waiting',
+                    payload: {
+                        waitMessage: `waiting for 3 more user to join...`
                     }
                 }));
             }
@@ -79,7 +86,38 @@ class GameManager {
                             roomId: roomId
                         }
                     }));
-                    room.addUser(user);
+                    if (room.users.length < 3) {
+                        room.addUser(user);
+                        room.users.forEach((u) => {
+                            u.socket.send(JSON.stringify({
+                                type: 'waiting',
+                                payload: {
+                                    waitMessage: `waiting for ${4 - room.users.length} more user to join...`
+                                }
+                            }));
+                        });
+                    }
+                    else if (room.users.length == 3) {
+                        room.addUser(user);
+                        const game = new Game_1.Game(room.users[0], room.users[1], room.users[2], room.users[3]);
+                        this.games.push(game);
+                        room.users.forEach((u) => {
+                            u.socket.send(JSON.stringify({
+                                type: 'game-started',
+                                payload: {
+                                    gameId: game.gameId
+                                }
+                            }));
+                        });
+                    }
+                    else {
+                        user.socket.send(JSON.stringify({
+                            type: 'room-full',
+                            payload: {
+                                roomId: roomId
+                            }
+                        }));
+                    }
                 }
             }
         });
