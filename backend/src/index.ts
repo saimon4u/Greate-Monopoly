@@ -15,7 +15,7 @@ const gameManager = new GameManager()
 wss.on('connection', function connection(ws, req) {
     //@ts-ignore
     const userName: string = url.parse(req.url, true).query.userName;
-    // console.log(`joined ${userName}`)
+    console.log(`joined ${userName}`)
     //@ts-ignore
     gameManager.addUser(new User(ws, userName))
 });

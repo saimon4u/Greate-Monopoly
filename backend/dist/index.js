@@ -16,10 +16,7 @@ const gameManager = new GameManager_1.GameManager();
 wss.on('connection', function connection(ws, req) {
     //@ts-ignore
     const userName = url_1.default.parse(req.url, true).query.userName;
-    // console.log(`joined ${userName}`)
+    console.log(`joined ${userName}`);
     //@ts-ignore
     gameManager.addUser(new User_1.User(ws, userName));
 });
-// server.listen(port, function listening(){
-//     console.log(`Listening on ${server.address().port}`)
-// })

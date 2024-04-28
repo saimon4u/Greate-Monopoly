@@ -19,7 +19,6 @@ exports.GameManager = void 0;
 // import { SocketManager, User } from './SocketManager';
 // import { Square } from 'chess.js';
 const Room_1 = require("./util/Room");
-const crypto_1 = require("crypto");
 class GameManager {
     constructor() {
         // this.games = [];
@@ -30,6 +29,7 @@ class GameManager {
     }
     addUser(user) {
         this.users.push(user);
+        this.addHandler(user);
         // if(this.pendingUser.length < 3) this.pendingUser.push(user);
     }
     // removeUser(socket: WebSocket) {
@@ -47,12 +47,40 @@ class GameManager {
     addHandler(user) {
         //@ts-ignore
         user.socket.on('message', (data) => {
-            const message = JSON.parse(data.toString);
+            const message = JSON.parse(data);
             if (message.type === 'create-room') {
-                let roomId = (0, crypto_1.randomUUID)();
+                let roomId = user.userName + this.rooms.length;
                 let room = new Room_1.Room(roomId);
                 room.addUser(user);
                 console.log('room created');
+                this.rooms.push(room);
+                user.socket.send(JSON.stringify({
+                    type: 'room-created',
+                    payload: {
+                        roomId: roomId
+                    }
+                }));
+            }
+            else if (message.type === 'join-room') {
+                const roomId = message.payload.roomId;
+                const room = this.rooms.find(room => room.roomId === roomId);
+                if (!room) {
+                    user.socket.send(JSON.stringify({
+                        type: 'room-not-found',
+                        payload: {
+                            roomId: roomId
+                        }
+                    }));
+                }
+                else {
+                    user.socket.send(JSON.stringify({
+                        type: 'joined-room',
+                        payload: {
+                            roomId: roomId
+                        }
+                    }));
+                    room.addUser(user);
+                }
             }
         });
         // user.socket.on('message', async (data) => {

@@ -8,6 +8,16 @@ class Room {
     }
     addUser(user) {
         this.users.push(user);
+        if (this.users.length < 4) {
+            this.users.forEach((u) => {
+                u.socket.send(JSON.stringify({
+                    type: 'waiting',
+                    payload: {
+                        waitMessage: `waiting for ${4 - this.users.length} more user to join...`
+                    }
+                }));
+            });
+        }
     }
 }
 exports.Room = Room;
