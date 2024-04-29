@@ -40,6 +40,7 @@ export class GameManager {
   }
 
   addUser(user: User) {
+    this.debug(`Added ${user.userName}`)
     this.users.push(user);
     this.addHandler(user);
     // if(this.pendingUser.length < 3) this.pendingUser.push(user);
@@ -51,7 +52,15 @@ export class GameManager {
       console.error('User not found?');
       return;
     }
+    const currentUser = this.users.find((user) => user.socket === socket)
+    this.debug(`Removed ${currentUser?.userName}`)
     this.users = this.users.filter((user) => user.socket !== socket);
+    const room = this.rooms.find((room) => room.roomId === currentUser?.roomId)
+    if(!room){
+      console.log('Room not found!')
+      return;
+    };
+    room.removeUser(currentUser ? currentUser : null)
   }
 
   // removeGame(gameId: string) {
@@ -59,13 +68,15 @@ export class GameManager {
   // }
 
   private addHandler(user: User) {
-    //@ts-ignore
     user.socket.on('message', (data) => {
+      //@ts-ignore
       const message = JSON.parse(data);
 
       if (message.type === 'create-room') {
         let roomId = user.userName + this.rooms.length
+        this.debug(`${user.userName} created ${roomId}`)
         let room = new Room(roomId)
+        user.setRoomId(roomId)
         room.addUser(user)
         // console.log('room created')
         this.rooms.push(room)
@@ -99,17 +110,28 @@ export class GameManager {
           )
         }
         else {
-          user.socket.send(
-            JSON.stringify({
-              type: 'joined-room',
-              payload: {
-                roomId: roomId
-              }
-            })
-          )
+          // user.socket.send(
+          //   JSON.stringify({
+          //     type: 'joined-room',
+          //     payload: {
+          //       roomId: roomId
+          //     }
+          //   })
+          // )
           if (room.users.length < 3) {
+            this.debug(`${user.userName} joined ${roomId}`)
+            user.setRoomId(roomId)
             room.addUser(user)
+            user.socket.send(
+              JSON.stringify({
+                type: 'joined-room',
+                payload: {
+                  roomId: roomId
+                }
+              })
+            )
             room.users.forEach((u) => {
+              this.debug(`Waiting ${u.userName} and current players ${room.users.length}`)
               u.socket.send(
                 JSON.stringify({
                   type: 'waiting',
@@ -120,7 +142,17 @@ export class GameManager {
               )
             })
           }else if(room.users.length == 3){
+            this.debug(`${user.userName} joined ${roomId}`)
+            user.setRoomId(roomId)
             room.addUser(user)
+            user.socket.send(
+              JSON.stringify({
+                type: 'joined-room',
+                payload: {
+                  roomId: roomId
+                }
+              })
+            )
             const game = new Game(room.users[0], room.users[1], room.users[2], room.users[3])
             this.games.push(game)
             room.users.forEach((u) => {
@@ -134,7 +166,7 @@ export class GameManager {
               )
             })
           }
-          else{
+          else if(room.users.length == 4){
             user.socket.send(
               JSON.stringify({
                 type: 'room-full',
@@ -145,6 +177,9 @@ export class GameManager {
             )
           }
         }
+      }else if(message.type === 'move'){
+        const value = message.payload.value
+        this.debug(`${user.userName} moved ${value} in ${user.roomId}`)
       }
     })
     // user.socket.on('message', async (data) => {
@@ -263,4 +298,8 @@ export class GameManager {
     //   SocketManager.getInstance().addUser(user, gameId);
     // }
   };
+
+  public debug(message: string){
+    console.log(message)
+  }
 }

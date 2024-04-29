@@ -29,29 +29,40 @@ class GameManager {
         this.rooms = [];
     }
     addUser(user) {
+        this.debug(`Added ${user.userName}`);
         this.users.push(user);
         this.addHandler(user);
         // if(this.pendingUser.length < 3) this.pendingUser.push(user);
     }
-    // removeUser(socket: WebSocket) {
-    //   const user = this.users.find((user) => user.socket !== socket);
-    //   if (!user) {
-    //     console.error('User not found?');
-    //     return;
-    //   }
-    //   this.users = this.users.filter((user) => user.socket !== socket);
-    //   SocketManager.getInstance().removeUser(user);
-    // }
+    removeUser(socket) {
+        const user = this.users.find((user) => user.socket !== socket);
+        if (!user) {
+            console.error('User not found?');
+            return;
+        }
+        const currentUser = this.users.find((user) => user.socket === socket);
+        this.debug(`Removed ${currentUser === null || currentUser === void 0 ? void 0 : currentUser.userName}`);
+        this.users = this.users.filter((user) => user.socket !== socket);
+        const room = this.rooms.find((room) => room.roomId === (currentUser === null || currentUser === void 0 ? void 0 : currentUser.roomId));
+        if (!room) {
+            console.log('Room not found!');
+            return;
+        }
+        ;
+        room.removeUser(currentUser ? currentUser : null);
+    }
     // removeGame(gameId: string) {
     //   this.games = this.games.filter((g) => g.gameId !== gameId);
     // }
     addHandler(user) {
-        //@ts-ignore
         user.socket.on('message', (data) => {
+            //@ts-ignore
             const message = JSON.parse(data);
             if (message.type === 'create-room') {
                 let roomId = user.userName + this.rooms.length;
+                this.debug(`${user.userName} created ${roomId}`);
                 let room = new Room_1.Room(roomId);
+                user.setRoomId(roomId);
                 room.addUser(user);
                 // console.log('room created')
                 this.rooms.push(room);
@@ -80,15 +91,26 @@ class GameManager {
                     }));
                 }
                 else {
-                    user.socket.send(JSON.stringify({
-                        type: 'joined-room',
-                        payload: {
-                            roomId: roomId
-                        }
-                    }));
+                    // user.socket.send(
+                    //   JSON.stringify({
+                    //     type: 'joined-room',
+                    //     payload: {
+                    //       roomId: roomId
+                    //     }
+                    //   })
+                    // )
                     if (room.users.length < 3) {
+                        this.debug(`${user.userName} joined ${roomId}`);
+                        user.setRoomId(roomId);
                         room.addUser(user);
+                        user.socket.send(JSON.stringify({
+                            type: 'joined-room',
+                            payload: {
+                                roomId: roomId
+                            }
+                        }));
                         room.users.forEach((u) => {
+                            this.debug(`Waiting ${u.userName} and current players ${room.users.length}`);
                             u.socket.send(JSON.stringify({
                                 type: 'waiting',
                                 payload: {
@@ -98,7 +120,15 @@ class GameManager {
                         });
                     }
                     else if (room.users.length == 3) {
+                        this.debug(`${user.userName} joined ${roomId}`);
+                        user.setRoomId(roomId);
                         room.addUser(user);
+                        user.socket.send(JSON.stringify({
+                            type: 'joined-room',
+                            payload: {
+                                roomId: roomId
+                            }
+                        }));
                         const game = new Game_1.Game(room.users[0], room.users[1], room.users[2], room.users[3]);
                         this.games.push(game);
                         room.users.forEach((u) => {
@@ -110,7 +140,7 @@ class GameManager {
                             }));
                         });
                     }
-                    else {
+                    else if (room.users.length == 4) {
                         user.socket.send(JSON.stringify({
                             type: 'room-full',
                             payload: {
@@ -119,6 +149,10 @@ class GameManager {
                         }));
                     }
                 }
+            }
+            else if (message.type === 'move') {
+                const value = message.payload.value;
+                this.debug(`${user.userName} moved ${value} in ${user.roomId}`);
             }
         });
         // user.socket.on('message', async (data) => {
@@ -230,5 +264,8 @@ class GameManager {
         // }
     }
     ;
+    debug(message) {
+        console.log(message);
+    }
 }
 exports.GameManager = GameManager;
