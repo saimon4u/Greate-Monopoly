@@ -1,4 +1,3 @@
-import React from 'react'
 import { PropType } from '../utils/PropType'
 
 function Card(props: PropType) {

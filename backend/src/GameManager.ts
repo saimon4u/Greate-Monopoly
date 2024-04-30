@@ -160,7 +160,12 @@ export class GameManager {
                 JSON.stringify({
                   type: 'game-started',
                   payload: {
-                    gameId: game.gameId
+                    players: {
+                      player1: room.users[0],
+                      player2: room.users[1],
+                      player3: room.users[2],
+                      player4: room.users[3],
+                    }
                   }
                 })
               )
@@ -179,7 +184,19 @@ export class GameManager {
         }
       }else if(message.type === 'move'){
         const value = message.payload.value
+        const room = this.rooms.find((room) => room.roomId === message.payload.roomId)
         this.debug(`${user.userName} moved ${value} in ${user.roomId}`)
+        user.setCurrentPosition(user.currentPosition + value)
+        room?.users.forEach((u) => {
+          u.socket.send(
+            JSON.stringify({
+              type: 'moved',
+              payload:{
+                player: user
+              }
+            })
+          )
+        })
       }
     })
     // user.socket.on('message', async (data) => {

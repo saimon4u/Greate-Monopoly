@@ -7,6 +7,7 @@ export class User {
     public userId: string;
     public userName: string;
     public roomId: string = '';
+    public currentPosition: number = 0;
   
     constructor(socket: WebSocket, userName: string) {
       this.socket = socket;
@@ -16,6 +17,10 @@ export class User {
 
     public setRoomId(roomId: string) {
       this.roomId = roomId;
+    }
+
+    public setCurrentPosition(position: number) {
+      this.currentPosition = position;
     }
   }
   
